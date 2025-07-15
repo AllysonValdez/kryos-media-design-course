@@ -1,0 +1,1059 @@
+<html lang="en"><head><script>(function(firebaseConfig, initialAuthToken, appId) {
+        window.__firebase_config = firebaseConfig;
+        window.__initial_auth_token = initialAuthToken;
+        window.__app_id = appId;
+            })("\n{\n  \"apiKey\": \"AIzaSyCqyCcs2R2e7AegGjvFAwG98wlamtbHvZY\",\n  \"authDomain\": \"bard-frontend.firebaseapp.com\",\n  \"projectId\": \"bard-frontend\",\n  \"storageBucket\": \"bard-frontend.firebasestorage.app\",\n  \"messagingSenderId\": \"175205271074\",\n  \"appId\": \"1:175205271074:web:2b7bd4d34d33bf38e6ec7b\"\n}\n","eyJhbGciOiJSUzI1NiIsImtpZCI6ImM5OGExYTdkYzllN2M4NTJlZmFmNzExNDAxYTAzY2FkM2Y4ZjVhYzkiLCJ0eXAiOiJKV1QifQ.eyJzdWIiOiJmaXJlYmFzZS1hZG1pbnNkay1mYnN2Y0BiYXJkLWZyb250ZW5kLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwiYXVkIjoiaHR0cHM6XC9cL2lkZW50aXR5dG9vbGtpdC5nb29nbGVhcGlzLmNvbVwvZ29vZ2xlLmlkZW50aXR5LmlkZW50aXR5dG9vbGtpdC52MS5JZGVudGl0eVRvb2xraXQiLCJ1aWQiOiIxMTc3NTQwNDQ4MDk0MDc3MDIxOSIsImlzcyI6ImZpcmViYXNlLWFkbWluc2RrLWZic3ZjQGJhcmQtZnJvbnRlbmQuaWFtLmdzZXJ2aWNlYWNjb3VudC5jb20iLCJjbGFpbXMiOnsiYXBwSWQiOiJjXzExN2FiZjQ1NWJkZTE3OWJfc2Vzby1jb3Vyc2Utc3BhLTcxNiJ9LCJleHAiOjE3NTI1ODAxODgsImlhdCI6MTc1MjU3NjU4OCwiYWxnIjoiUlMyNTYifQ.IuUvkDIzhxQwupOi-m3woICE7muIfP3QUezJTay-yCxOq3nW3AFdb9wMtuxMQPwe8jWzLYHtoBc8m4PdLsnaaxOl2HhvPHW_cs4mr-depFcEOQh4RsVDCqXosAUQY20_z26BjDpRJ5jiG5j_SmGmfmAe-43n56vT0xCwp_jMzPALvYAdJzovmWt35IYQv4tPKAShoG6_wbLf8kwkWDwOAykP-AIz4r1SlRviH-kbCu-4qwhtDi3wKwLzpfZ_CPRonI1LcO0_fhDBWKeWcXAHJSuhMs6TEByhr4dq_j-LlI5E6AYqp2ZwjK7PRewHqsg5kKGg-KmoIGUj_tDyqFWOiQ","c_117abf455bde179b_seso-course-spa-716")</script><script>(function() {
+  // Ensure this script is executed only once
+  if (window.firebaseAuthBridgeScriptLoaded) {
+    return;
+  }
+  window.firebaseAuthBridgeScriptLoaded = true;
+
+  let nextTokenPromiseId = 0;
+
+  // Stores { resolve, reject } for ongoing token requests
+  const pendingTokenPromises = {};
+
+  // Listen for messages from the Host Application
+  window.addEventListener('message', function(event) {
+
+    const messageData = event.data;
+
+  if (messageData && messageData.type === 'RESOLVE_NEW_FIREBASE_TOKEN') {
+      const { success, token, error, promiseId } = messageData ?? {};
+      if (pendingTokenPromises[promiseId]) {
+        if (success) {
+          pendingTokenPromises[promiseId].resolve(token);
+        } else {
+          pendingTokenPromises[promiseId].reject(new Error(error || 'Token refresh failed from host.'));
+        }
+        delete pendingTokenPromises[promiseId];
+      }
+    }
+  });
+
+  // Expose a function for the Generated App to request a new Firebase token
+  window.requestNewFirebaseToken = function() {
+    const currentPromiseId = nextTokenPromiseId++;
+    const promise = new Promise((resolve, reject) => {
+      pendingTokenPromises[currentPromiseId] = { resolve, reject };
+    });
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({
+        type: 'REQUEST_NEW_FIREBASE_TOKEN',
+        promiseId: currentPromiseId
+      }, '*');
+    } else {
+      pendingTokenPromises[currentPromiseId].reject(new Error('No parent window to request token from.'));
+      delete pendingTokenPromises[currentPromiseId];
+    }
+    return promise;
+  };
+})();</script><script>
+let realOriginalGetUserMedia = null;
+if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+  realOriginalGetUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+}
+
+(function() {
+  if (navigator.mediaDevices && navigator.mediaDevices.__proto__) {
+    try {
+      Object.defineProperty(navigator.mediaDevices.__proto__, 'getUserMedia', {
+        get: function() {
+          return undefined; // Or throw an error
+        },
+        configurable: false
+      });
+    } catch (error) {
+      console.error("Error defining prototype getter:", error);
+    }
+  }
+})();
+
+(function() {
+  const pendingMediaResolvers = {};
+  let nextMediaPromiseId = 0;
+
+  function requestMediaPermissions(constraints) {
+    const mediaPromiseId = nextMediaPromiseId++;
+    const promise = new Promise((resolve, reject) => {
+      pendingMediaResolvers[mediaPromiseId] = (granted) => {
+        delete pendingMediaResolvers[mediaPromiseId];
+        resolve(granted);
+      };
+    });
+
+    window.parent.postMessage({
+      type: 'requestMediaPermission',
+      constraints: constraints,
+      promiseId: mediaPromiseId,
+    }, '*');
+
+    return promise;
+  }
+
+  let originalGetUserMedia = realOriginalGetUserMedia;
+
+  function interceptGetUserMedia() {
+    if (navigator.mediaDevices) {
+      Object.defineProperty(navigator.mediaDevices, 'getUserMedia', {
+        value: function(constraints) {
+          return requestMediaPermissions(constraints).then((granted) => {
+            if (granted) {
+              if (originalGetUserMedia) {
+                return originalGetUserMedia(constraints);
+              } else {
+                throw new Error("Original getUserMedia not available.");
+              }
+            } else {
+              throw new DOMException('Permission denied', 'NotAllowedError');
+            }
+          });
+        },
+        writable: false,
+        configurable: false
+      });
+    }
+  }
+
+  interceptGetUserMedia();
+
+  const observer = new MutationObserver(function(mutationsList, observer) {
+    for (const mutation of mutationsList) {
+      if (mutation.type === 'reconfigured' && mutation.name === 'getUserMedia' && mutation.object === navigator.mediaDevices) {
+        interceptGetUserMedia();
+      } else if (mutation.type === 'attributes' && mutation.attributeName === 'getUserMedia' && mutation.target === navigator.mediaDevices) {
+        interceptGetUserMedia();
+      } else if (mutation.type === 'childList' && mutation.addedNodes) {
+        mutation.addedNodes.forEach(node => {
+          if (node === navigator.mediaDevices) {
+            interceptGetUserMedia();
+          }
+        });
+      }
+    }
+  });
+
+  function interceptSpeechRecognition() {
+    if (!window.SpeechRecognition && !window.webkitSpeechRecognition) {
+      return;
+    }
+
+    const OriginalSpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    const SpeechRecognitionWrapper = function(...args) {
+      const recognizer = new OriginalSpeechRecognition(...args);
+      const originalStart = recognizer.start.bind(recognizer);
+
+      recognizer.start = function() {
+        requestMediaPermissions({ audio: true }).then(granted => {
+          if (granted) {
+            originalStart();
+          } else {
+            const errorEvent = new SpeechRecognitionErrorEvent('error');
+            errorEvent.error = 'not-allowed'; // This is the standard error for permission denial.
+            recognizer.dispatchEvent(errorEvent);
+          }
+        });
+      };
+
+      return recognizer;
+    };
+
+    SpeechRecognitionWrapper.prototype = OriginalSpeechRecognition.prototype;
+    SpeechRecognitionWrapper.prototype.constructor = SpeechRecognitionWrapper;
+
+    if (window.SpeechRecognition) {
+      window.SpeechRecognition = SpeechRecognitionWrapper;
+    }
+    if (window.webkitSpeechRecognition) {
+      window.webkitSpeechRecognition = SpeechRecognitionWrapper;
+    }
+  }
+
+  interceptSpeechRecognition();
+
+  window.addEventListener('message', function(event) {
+    if (event.data) {
+      if (event.data.type === 'resolveMediaPermission') {
+        const { promiseId, granted } = event.data;
+        if (pendingMediaResolvers[promiseId]) {
+          pendingMediaResolvers[promiseId](granted);
+        }
+      }
+    }
+  });
+
+})();</script><script>((function(modelInformation) {
+  const originalFetch = window.fetch;
+  // TODO: b/421908508 - Move these out of the script and match all generative AI model calls.
+  let googleLlmBaseApiUrls = [
+    'https://generativelanguage.googleapis.com/v1beta/models/' + modelInformation.textModelName + ':streamGenerateContent',
+    'https://generativelanguage.googleapis.com/v1beta/models/' + modelInformation.textModelName + ':generateContent',
+    'https://generativelanguage.googleapis.com/v1beta/models/' + modelInformation.imageModelName + ':predict',
+    'https://generativelanguage.googleapis.com/v1beta/models/' + modelInformation.imageModelName + ':predictLongRunning',
+    'https://generativelanguage.googleapis.com/v1beta/models/' + modelInformation.imageEditModelName + ':generateContent',
+    'https://generativelanguage.googleapis.com/v1beta/models/' + modelInformation.videoModelName + ':predict',
+    'https://generativelanguage.googleapis.com/v1beta/models/' + modelInformation.videoModelName + ':predictLongRunning',
+    'https://generativelanguage.googleapis.com/v1beta/models/' + modelInformation.ttsModelName + ':generateContent',
+  ];
+  modelInformation.deprecatedTextModelNames.forEach((modelName) => {
+    googleLlmBaseApiUrls.push(
+      'https://generativelanguage.googleapis.com/v1beta/models/' + modelName + ':streamGenerateContent',
+      'https://generativelanguage.googleapis.com/v1beta/models/' + modelName + ':generateContent',
+    );
+  });
+
+  const pendingFetchResolvers = {};
+  let nextPromiseId = 0;
+
+  function handleStringInput(input, optionsArgument) {
+    const actualUrl = input;
+    const fetchCallArgs = [actualUrl, optionsArgument];
+    const effectiveOptions = optionsArgument || {};
+    const bodyForApiKeyCheck = effectiveOptions.body;
+    const bodyForPostMessage = effectiveOptions.body;
+    return { actualUrl, fetchCallArgs, effectiveOptions, bodyForApiKeyCheck, bodyForPostMessage };
+  }
+
+  function handleRequestInput(input, optionsArgument) {
+    const actualUrl = input.url;
+    const fetchCallArgs = [input, optionsArgument];
+    const effectiveOptions = { method: input.method, headers: new Headers(input.headers) };
+    let bodyForApiKeyCheck;
+    let bodyForPostMessage;
+
+    if (optionsArgument) {
+      if (optionsArgument.method) effectiveOptions.method = optionsArgument.method;
+      if (optionsArgument.headers) effectiveOptions.headers = new Headers(optionsArgument.headers);
+      if ('body' in optionsArgument) {
+        bodyForApiKeyCheck = optionsArgument.body;
+        bodyForPostMessage = optionsArgument.body;
+      } else {
+        bodyForApiKeyCheck = undefined;
+        bodyForPostMessage = input.body;
+      }
+    } else {
+      bodyForApiKeyCheck = undefined;
+      bodyForPostMessage = input.body;
+    }
+    return { actualUrl, fetchCallArgs, effectiveOptions, bodyForApiKeyCheck, bodyForPostMessage };
+  }
+
+  window.fetch = function(input, optionsArgument) {
+    let actualUrl;
+    let fetchCallArgs;
+    let effectiveOptions = {};
+    let bodyForApiKeyCheck;
+    let bodyForPostMessage;
+
+    if (typeof input === 'string') {
+      ({actualUrl, fetchCallArgs, effectiveOptions, bodyForApiKeyCheck, bodyForPostMessage} = handleStringInput(input, optionsArgument));
+    } else if (input instanceof Request) {
+      ({actualUrl, fetchCallArgs, effectiveOptions, bodyForApiKeyCheck, bodyForPostMessage} = handleRequestInput(input, optionsArgument));
+    } else {
+      return originalFetch.apply(window, [input, optionsArgument]);
+    }
+
+    effectiveOptions.method = effectiveOptions.method || 'GET';
+    if (!effectiveOptions.headers) {
+      effectiveOptions.headers = new Headers();
+    }
+
+
+    if (typeof actualUrl === 'string' && googleLlmBaseApiUrls.some((url) => actualUrl.startsWith(url))) {
+      let apiKeyIsNull = true;
+
+      const regex = new RegExp("models/([^:]+)");
+      const modelNameMatch = actualUrl.match(regex);
+      const modelName = modelNameMatch ? modelNameMatch[1] : 'unspecified';
+
+
+      try {
+        const urlObject = new URL(actualUrl);  // Use URL object for robust parsing
+        const apiKeyParam = urlObject.searchParams.get('key');
+        if (apiKeyParam) {
+          apiKeyIsNull = false;
+        }
+      } catch (e) {
+        // Continue checks even if URL parsing fails
+      }
+
+      if (apiKeyIsNull && effectiveOptions.headers) {
+        const h = new Headers(effectiveOptions.headers);
+        const apiKeyHeaderValue = h.get('X-API-Key') || h.get('x-api-key');
+        if (apiKeyHeaderValue) {
+          apiKeyIsNull = false;
+          return originalFetch.apply(window, fetchCallArgs);
+        }
+      }
+
+      if (apiKeyIsNull && effectiveOptions.method && ['POST', 'PUT', 'PATCH'].includes(effectiveOptions.method.toUpperCase()) && typeof bodyForApiKeyCheck === 'string') {
+        try {
+          const bodyData = JSON.parse(bodyForApiKeyCheck);
+          if (bodyData && bodyData.apiKey) {
+            apiKeyIsNull = false;
+            return originalFetch.apply(window, fetchCallArgs);
+          }
+        } catch (e) {
+          // Ignore JSON parsing errors
+        }
+      }
+
+      if(apiKeyIsNull) {
+        const promiseId = nextPromiseId++;
+        const promise = new Promise((resolve) => {
+          pendingFetchResolvers[promiseId] = (resolvedResponse) => {
+            delete pendingFetchResolvers[promiseId];
+            resolve(resolvedResponse);
+          };
+        });
+
+        let serializedBodyForPostMessage;
+        if (typeof bodyForPostMessage === 'string' || bodyForPostMessage == null) {
+            serializedBodyForPostMessage = bodyForPostMessage;
+        } else if (bodyForPostMessage instanceof ReadableStream) {
+            serializedBodyForPostMessage = null;
+        } else {
+            try {
+                serializedBodyForPostMessage = JSON.stringify(bodyForPostMessage);
+            } catch (e) {
+                serializedBodyForPostMessage = null;
+            }
+        }
+
+        const messageOptions = {
+            method: effectiveOptions.method,
+            headers: Object.fromEntries(new Headers(effectiveOptions.headers).entries()),
+            body: serializedBodyForPostMessage
+        };
+
+        window.parent.postMessage({
+          type: 'requestFetch',
+          url: actualUrl,
+          modelName: modelName,
+          options: messageOptions,
+          promiseId: promiseId,
+        }, '*');
+
+        return promise;
+      }
+      return originalFetch.apply(window, fetchCallArgs);
+    }
+    return originalFetch.apply(window, fetchCallArgs);
+  };
+
+  window.addEventListener('message', function(event) {
+    if (event.data && event.data.type === 'resolveFetch') {
+      const { promiseId, response } = event.data;
+      if (pendingFetchResolvers[promiseId]) {
+        try {
+          const reconstructedResponse = new Response(response.body, {
+            status: response.status,
+            statusText: response.statusText,
+            headers: new Headers(response.headers),
+          });
+          pendingFetchResolvers[promiseId](reconstructedResponse);
+        } catch (error) {
+          pendingFetchResolvers[promiseId](new Response(null, { status: 500, statusText: "Interceptor Response Reconstruction Error" }));
+        }
+      }
+    }
+  });
+
+}))({"textModelName":"gemini-2.5-flash-preview-04-17","imageModelName":"imagen-3.0-generate-002","imageEditModelName":"gemini-2.0-flash-preview-image-generation","videoModelName":"veo-2.0-generate-001","ttsModelName":"gemini-2.5-flash-preview-tts","deprecatedTextModelNames":["gemini-2.0-flash"]})</script><script>(function() {
+  const originalConsoleLog = console.log;
+  const originalConsoleError = console.error;
+
+    /**
+   * Normalizes an error event or a promise rejection reason into a structured error object.
+   * @param {*} errorEventOrReason The error object or reason.
+   * @return {object} Structured error data { message, name, stack }.
+   */
+  function getErrorObject(errorEventOrReason) {
+    if (errorEventOrReason instanceof Error) {
+      return {
+        message: errorEventOrReason.message,
+        name: errorEventOrReason.name,
+        stack: errorEventOrReason.stack,
+      };
+    }
+    // Fallback for non-Error objects.
+    try {
+      return {
+        message: JSON.stringify(errorEventOrReason),
+        name: 'UnknownErrorType',
+        stack: null,
+      };
+    } catch (e) {
+      return {
+        message: String(errorEventOrReason),
+        name: 'UnknownErrorTypeNonStringifiable',
+        stack: null,
+      };
+    }
+  }
+
+  /**
+   * Converts an array of arguments (from log/error) into a single string.
+   * Handles Error objects specially to include their message and stack.
+   * @param {Array<*>} args - Arguments passed to console methods.
+   * @return {string} A string representation of the arguments.
+   */
+  function stringifyArgs(args) {
+    return args
+      .map((arg) => {
+        if (arg instanceof Error) {
+          const {message, stack} = arg;
+          return `Error: ${message}${stack ? ('\nStack: ' + stack) : ''}`;
+        }
+        if (typeof arg === 'object' && arg !== null) {
+          try {
+            return JSON.stringify(arg);
+          } catch (error) {
+            return '[Circular Object]';
+          }
+        } else {
+          return String(arg);
+        }
+      })
+      .join(' ');
+  }
+
+  console.log = function(...args) {
+    const logString = stringifyArgs(args);
+    window.parent.postMessage({ type: 'log', message: logString }, '*');
+    originalConsoleLog.apply(console, args);
+  };
+
+  console.error = function(...args) {
+    let errorData;
+    if (args.length > 0 && args[0] instanceof Error) {
+      const err = args[0];
+      // If the first arg is an Error, capture its details.
+      errorData = {
+        type: 'error',
+        source: 'CONSOLE_ERROR',
+        ...getErrorObject(err),
+        rawArgsString: stringifyArgs(args.slice(1)),
+        timestamp: new Date().toISOString(),
+      };
+    } else {
+      // If not an Error object, treat all args as a general error message.
+      errorData = {
+        type: 'error',
+        source: 'CONSOLE_ERROR',
+        message: stringifyArgs(args),
+        name: 'ConsoleLoggedError',
+        stack: null,
+        timestamp: new Date().toISOString(),
+      };
+    }
+    window.parent.postMessage(errorData, '*');
+    originalConsoleError.apply(console, args);
+  };
+
+  // Listen for global unhandled synchronous errors.
+  window.addEventListener('error', function(event) {
+    const errorDetails = event.error ? getErrorObject(event.error) : {
+      message: event.message,
+      name: 'GlobalError',
+      stack: null,
+      filename: event.filename,
+      lineno: event.lineno,
+      colno: event.colno,
+    };
+
+    window.parent.postMessage({
+      type: 'error',
+      source: 'global',
+      ...errorDetails,
+      message: errorDetails.message || event.message,
+      timestamp: new Date().toISOString(),
+    }, '*');
+  });
+
+  // Listen for unhandled promise rejections (asynchronous errors).
+  window.addEventListener('unhandledrejection', function(event) {
+    const errorDetails = getErrorObject(event.reason);
+
+    window.parent.postMessage({
+      type: 'error',
+      source: 'unhandledrejection',
+      ...errorDetails,
+      message: errorDetails.message || 'Unhandled Promise Rejection',
+      timestamp: new Date().toISOString(),
+    }, '*');
+  });
+
+})();</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kryos Media Design Course</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&amp;display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" crossorigin="anonymous"></script>
+    <style>
+        body { font-family: 'Montserrat', sans-serif; }
+        .chart-container { position: relative; width: 100%; max-width: 250px; margin-left: auto; margin-right: auto; height: 250px; max-height: 250px; }
+        .disabled-module { opacity: 0.5; pointer-events: none; }
+        /* For responsive video embedding */
+        .video-responsive {
+            overflow: hidden;
+            padding-bottom: 56.25%; /* 16:9 aspect ratio */
+            position: relative;
+            height: 0;
+        }
+        .video-responsive iframe {
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 100%;
+            position: absolute;
+        }
+        .disabled-video-button {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .hidden-video-card {
+            display: none;
+        }
+        .certificate-container {
+            background: linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 100%); /* Light green-blue gradient */
+            border: 5px solid #1d4ed8; /* Blue border */
+            padding: 40px;
+            text-align: center;
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            max-width: 800px;
+            margin: 40px auto;
+            position: relative;
+            overflow: hidden;
+        }
+        .certificate-container::before {
+            content: '';
+            position: absolute;
+            top: -50px;
+            left: -50px;
+            width: 150px;
+            height: 150px;
+            background: rgba(29, 78, 216, 0.1); /* Light blue swirl */
+            border-radius: 50%;
+            transform: rotate(45deg);
+        }
+        .certificate-container::after {
+            content: '';
+            position: absolute;
+            bottom: -50px;
+            right: -50px;
+            width: 150px;
+            height: 150px;
+            background: rgba(29, 78, 216, 0.1); /* Light blue swirl */
+            border-radius: 50%;
+            transform: rotate(-45deg);
+        }
+        .certificate-title {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 3rem;
+            font-weight: 700;
+            color: #1d4ed8; /* Dark blue */
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        .certificate-subtitle {
+            font-size: 1.5rem;
+            color: #3f6212; /* Darker green */
+            margin-bottom: 10px;
+        }
+        .certificate-name {
+            font-size: 2.2rem;
+            font-weight: 600;
+            color: #0c4a6e; /* Dark teal */
+            margin: 20px 0;
+            padding-bottom: 5px;
+            border-bottom: 2px dashed #9ca3af; /* Gray dashed line */
+            display: inline-block;
+        }
+        .certificate-text {
+            font-size: 1.2rem;
+            color: #4b5563; /* Gray */
+            margin-bottom: 15px;
+        }
+        .certificate-date {
+            font-size: 1.1rem;
+            color: #6b7280; /* Lighter gray */
+            margin-top: 30px;
+            font-style: italic;
+        }
+    </style>
+    <!-- Chosen Palette: Warm Stone & Blue -->
+    <!-- Application Structure Plan: A single-page application designed as an interactive course tracker. The structure features a main header, a progress visualization section (donut chart), a tab-based navigation for course modules, and a dynamic content area where video resources for the selected module are displayed as interactive cards. This structure was chosen over a static list to create an engaging, task-oriented user experience. It allows users to focus on one module at a time, track their completion visually, and have their progress persist between sessions, which is highly usable for a self-paced learning tool. The core interaction is marking videos as complete, which updates both the UI and the progress chart. Now includes sequential module unlocking based on previous module completion and direct YouTube video embedding. Additionally, videos within each module must be completed chronologically, with subsequent videos hidden until the prior one is completed. A certificate section is revealed upon full course completion, offering a downloadable image certificate, with a new feature to input the user's name directly on the certificate. Module navigation has been transformed into a vertical sidebar for improved layout and navigation on larger screens. -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: Course Modules & Video Links -> Goal: Organize content and guide learning -> Viz/Presentation Method: Tab-based navigation for modules and a grid of interactive cards for videos. Each card now includes an embedded YouTube player. Interaction: User clicks a module tab to filter videos. User clicks a button to toggle completion status. Justification: Embedding videos directly enhances the learning experience by keeping users within the application, reducing context switching. Library/Method: HTML/CSS/Tailwind + Vanilla JS.
+        - Report Info: User's learning progress -> Goal: Motivate user and provide clear feedback -> Viz/Presentation Method: Donut Chart showing percentage of completed videos. Interaction: The chart updates automatically when a user marks a video as complete. Justification: A visual, real-time representation of progress is highly motivating and provides immediate feedback on user actions. Library/Method: Chart.js (Canvas).
+        - Report Info: User's completion data -> Goal: Persist user progress -> Viz/Presentation Method: Data stored in a database. Interaction: Progress is saved automatically in the background. Justification: Ensures a seamless user experience, allowing them to return and continue their course without losing their data. Library/Method: Firestore.
+        - Report Info: Course completion status -> Goal: Provide a sense of achievement -> Viz/Presentation Method: Dynamic certificate display. Interaction: Certificate section becomes visible upon 100% completion; user can download it. Justification: A certificate serves as a tangible reward and recognition of effort, enhancing engagement. Library/Method: HTML/CSS/Tailwind + html2canvas (for download).
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+<style>*, ::before, ::after{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/* ! tailwindcss v3.4.16 | MIT License | https://tailwindcss.com */*,::after,::before{box-sizing:border-box;border-width:0;border-style:solid;border-color:#e5e7eb}::after,::before{--tw-content:''}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;tab-size:4;font-family:ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0;padding:0}legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.container{width:100%}@media (min-width: 640px){.container{max-width:640px}}@media (min-width: 768px){.container{max-width:768px}}@media (min-width: 1024px){.container{max-width:1024px}}@media (min-width: 1280px){.container{max-width:1280px}}@media (min-width: 1536px){.container{max-width:1536px}}.sticky{position:sticky}.top-4{top:1rem}.mx-auto{margin-left:auto;margin-right:auto}.mb-10{margin-bottom:2.5rem}.mb-4{margin-bottom:1rem}.mb-6{margin-bottom:1.5rem}.mb-8{margin-bottom:2rem}.mt-1{margin-top:0.25rem}.mt-10{margin-top:2.5rem}.mt-12{margin-top:3rem}.mt-2{margin-top:0.5rem}.mt-4{margin-top:1rem}.mt-6{margin-top:1.5rem}.mt-8{margin-top:2rem}.flex{display:flex}.grid{display:grid}.hidden{display:none}.min-h-\[400px\]{min-height:400px}.w-3\/4{width:75%}.w-full{width:100%}.max-w-6xl{max-width:72rem}.flex-1{flex:1 1 0%}.grid-cols-1{grid-template-columns:repeat(1, minmax(0, 1fr))}.flex-col{flex-direction:column}.gap-6{gap:1.5rem}.rounded-lg{border-radius:0.5rem}.rounded-xl{border-radius:0.75rem}.border-b{border-bottom-width:1px}.border-b-2{border-bottom-width:2px}.border-blue-400{--tw-border-opacity:1;border-color:rgb(96 165 250 / var(--tw-border-opacity, 1))}.border-stone-200{--tw-border-opacity:1;border-color:rgb(231 229 228 / var(--tw-border-opacity, 1))}.bg-blue-600{--tw-bg-opacity:1;background-color:rgb(37 99 235 / var(--tw-bg-opacity, 1))}.bg-stone-50{--tw-bg-opacity:1;background-color:rgb(250 250 249 / var(--tw-bg-opacity, 1))}.bg-transparent{background-color:transparent}.bg-white{--tw-bg-opacity:1;background-color:rgb(255 255 255 / var(--tw-bg-opacity, 1))}.p-4{padding:1rem}.p-6{padding:1.5rem}.px-6{padding-left:1.5rem;padding-right:1.5rem}.py-1{padding-top:0.25rem;padding-bottom:0.25rem}.py-2{padding-top:0.5rem;padding-bottom:0.5rem}.py-3{padding-top:0.75rem;padding-bottom:0.75rem}.pb-4{padding-bottom:1rem}.text-center{text-align:center}.font-mono{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace}.text-2xl{font-size:1.5rem;line-height:2rem}.text-4xl{font-size:2.25rem;line-height:2.5rem}.text-lg{font-size:1.125rem;line-height:1.75rem}.text-xl{font-size:1.25rem;line-height:1.75rem}.text-xs{font-size:0.75rem;line-height:1rem}.font-bold{font-weight:700}.font-semibold{font-weight:600}.text-blue-800{--tw-text-opacity:1;color:rgb(30 64 175 / var(--tw-text-opacity, 1))}.text-stone-500{--tw-text-opacity:1;color:rgb(120 113 108 / var(--tw-text-opacity, 1))}.text-stone-600{--tw-text-opacity:1;color:rgb(87 83 78 / var(--tw-text-opacity, 1))}.text-stone-700{--tw-text-opacity:1;color:rgb(68 64 60 / var(--tw-text-opacity, 1))}.text-stone-800{--tw-text-opacity:1;color:rgb(41 37 36 / var(--tw-text-opacity, 1))}.text-stone-900{--tw-text-opacity:1;color:rgb(28 25 23 / var(--tw-text-opacity, 1))}.text-white{--tw-text-opacity:1;color:rgb(255 255 255 / var(--tw-text-opacity, 1))}.shadow{--tw-shadow:0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);--tw-shadow-colored:0 1px 3px 0 var(--tw-shadow-color), 0 1px 2px -1px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.shadow-md{--tw-shadow:0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);--tw-shadow-colored:0 4px 6px -1px var(--tw-shadow-color), 0 2px 4px -2px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.transition-colors{transition-property:color, background-color, border-color, fill, stroke, -webkit-text-decoration-color;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke, -webkit-text-decoration-color;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms}.hover\:bg-blue-700:hover{--tw-bg-opacity:1;background-color:rgb(29 78 216 / var(--tw-bg-opacity, 1))}.focus\:border-blue-600:focus{--tw-border-opacity:1;border-color:rgb(37 99 235 / var(--tw-border-opacity, 1))}.focus\:outline-none:focus{outline:2px solid transparent;outline-offset:2px}@media (min-width: 640px){.sm\:grid-cols-2{grid-template-columns:repeat(2, minmax(0, 1fr))}.sm\:p-6{padding:1.5rem}}@media (min-width: 768px){.md\:mb-0{margin-bottom:0px}.md\:mr-8{margin-right:2rem}.md\:w-64{width:16rem}.md\:flex-row{flex-direction:row}.md\:items-start{align-items:flex-start}.md\:text-3xl{font-size:1.875rem;line-height:2.25rem}.md\:text-5xl{font-size:3rem;line-height:1}}@media (min-width: 1024px){.lg\:grid-cols-3{grid-template-columns:repeat(3, minmax(0, 1fr))}.lg\:p-8{padding:2rem}}</style></head>
+<body class="bg-stone-50 text-stone-800">
+
+    <div class="container mx-auto max-w-6xl p-4 sm:p-6 lg:p-8">
+
+        <header class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold text-stone-900">Kryos Media Design Course</h1>
+            <p class="mt-2 text-lg text-stone-600">Your interactive tracker for learning design with Kryos Media.</p>
+            <button id="downloadAppButton" class="mt-4 px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow hover:bg-blue-700 transition-colors">Download this App</button>
+        </header>
+
+        <main>
+            <section id="progress-section" class="mb-10 p-6 bg-white rounded-xl shadow-md">
+                <h2 class="text-2xl font-bold text-center mb-4">Your Progress</h2>
+                <div class="chart-container">
+                    <canvas id="progressChart" width="500" height="500" style="display: block; box-sizing: border-box; height: 250px; width: 250px;"></canvas>
+                </div>
+                <p id="progress-text" class="text-center text-stone-600 mt-4">Complete a lesson to get started!</p>
+            </section>
+
+            <section id="course-section" class="flex flex-col md:flex-row md:items-start">
+                <nav id="module-nav" class="flex flex-col w-full md:w-64 mb-8 md:mb-0 md:mr-8 p-4 bg-white rounded-xl shadow-md sticky top-4"></nav>
+                
+                <div id="module-content" class="flex-1 bg-white rounded-xl shadow-md p-6 min-h-[400px]">
+                    <div id="module-header" class="mb-6 pb-4 border-b border-stone-200">
+                         <h3 id="module-title" class="text-2xl font-bold text-stone-800"></h3>
+                         <p id="module-description" class="text-stone-600 mt-1"></p>
+                    </div>
+                    <div id="video-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+                </div>
+            </section>
+
+            <section id="certificate-section" class="hidden mt-10">
+                <div class="certificate-container" id="certificateContent">
+                    <h2 class="certificate-title">Certificate of Completion</h2>
+                    <p class="certificate-subtitle">This certifies that</p>
+                    <input type="text" id="userNameInput" placeholder="Enter Your Name" class="certificate-name text-center bg-transparent border-b-2 border-blue-400 focus:outline-none focus:border-blue-600 w-3/4 mx-auto py-1 text-blue-800 font-semibold text-2xl md:text-3xl" aria-label="Enter your name for the certificate">
+                    <p class="certificate-text mt-4">has successfully completed the</p>
+                    <p class="certificate-text font-bold text-xl text-blue-800">Kryos Media Design Course</p>
+                    <p class="certificate-text">demonstrating a foundational understanding of graphic design principles and tools.</p>
+                    <p class="certificate-date" id="certificateDate">Date: </p>
+                    <div class="mt-8">
+                        <p class="text-stone-700 text-lg">Kryos Media</p>
+                    </div>
+                </div>
+                <div class="text-center mt-6">
+                    <button id="downloadCertificateButton" class="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow hover:bg-blue-700 transition-colors text-lg">Download Certificate</button>
+                </div>
+            </section>
+        </main>
+
+        <footer class="text-center mt-12 text-stone-500">
+            <p>Content curated for Kryos Media. This is an interactive learning tool.</p>
+             <div class="mt-4">
+                <p class="text-xs">User ID: <span id="userId" class="font-mono">11775404480940770219</span></p>
+            </div>
+        </footer>
+
+    </div>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const courseData = {
+          modules: [
+            {
+              title: "Module 1: Getting Started",
+              description: "Build a strong foundation. Learn the mindset, principles, and essential resources for any aspiring graphic designer.",
+              videos: [
+                { title: "Why You're Not Growing as a Graphic Designer (Beginners)", url: "http://www.youtube.com/watch?v=xiMSsp7BApk" },
+                { title: "BAD Graphic Design: Tips for beginners EP2", url: "http://www.youtube.com/watch?v=f1vq7_E7YnM" },
+                { title: "BAD Graphic design: Tips for beginners!", url: "http://www.youtube.com/watch?v=Zx084IJnKkI" },
+                { title: "8 Best Free Sites All Graphic Designers Should Know! (2025)", url: "http://www.youtube.com/watch?v=WIu8CdaBxgQ" },
+                { title: "The BEST Graphic Design Sites in 2024", url: "http://www.youtube.com/watch?v=Ut-pV8PebWk" },
+                { title: "Best 5 FREE Sites All Graphic Designers Should Visit (2024)", url: "http://www.youtube.com/watch?v=woXDftwrLYE" },
+                { title: "5 Best FREE Sites All Designers Should Know (2023)", url: "http://www.youtube.com/watch?v=3KtGtEmY15w" },
+                { title: "17 BEST Sites All Graphic Designers Should Know! (2024)", url: "http://www.youtube.com/watch?v=mv3OB_X-s1U" },
+                { title: "My TOP 3 Essential Tools ALL DESIGNERS SHOULD HAVE", url: "http://www.youtube.com/watch?v=8AWq2DjHgUw" },
+              ],
+            },
+            {
+              title: "Module 2: Photoshop & Design Principles",
+              description: "Dive into the most powerful design tool. Learn fundamental Photoshop skills and core design principles to make your work stand out.",
+              videos: [
+                { title: "Master Photoshop for Beginners With These 9 Tools (2023)", url: "http://www.youtube.com/watch?v=Eitbz_BeDKk" },
+                { title: "4 BEST Ways to make Designs POP in Photoshop! (Beginners)", url: "http://www.youtube.com/watch?v=Zetw0QBYUO4" },
+                { title: "2 Ways to Make Your Designs POP! (Beginners/Advanced)", url: "http://www.youtube.com/watch?v=6UeMs-bdJOg" },
+                { title: "Photoshop Tutorial: Esports Player Banner/Ad Design", url: "http://www.youtube.com/watch?v=tWvsxXE8Jn8" },
+                { title: "Photoshop Tutorial: Creating a Clean White Banner Design", url: "http://www.youtube.com/watch?v=YuN_9BgUOWE" },
+                { title: "Photoshop Tutorial | Creating Multi-Colored Banners", url: "http://www.youtube.com/watch?v=w8WROkxIiEM" },
+                { title: "Photoshop Tutorial: Creative Colorful Abstract Banner Design", url: "http://www.youtube.com/watch?v=sf9gagcU0zQ" },
+                { title: "Professional Designer Create a Poster TOTALLY COLORBLIND?!", url: "http://www.youtube.com/watch?v=0xFmwcz-R1o" },
+              ],
+            },
+            {
+              title: "Module 3: Typography & Text",
+              description: "Words are pictures. Learn the art of typography to create compelling layouts and communicate your message effectively.",
+              videos: [
+                { title: "5 Techniques For BETTER Typography/Text Layouts! (Beginners)", url: "http://www.youtube.com/watch?v=qzrKARm3v0w" },
+                { title: "11 Photoshop Text Effects AMAZING For BEGINNERS! (2024)", url: "http://www.youtube.com/watch?v=BQcUrAIttjM" },
+                { title: "3 Ways to Improve your Typography/Text! (Beginners)", url: "http://www.youtube.com/watch?v=xadOW6Mlvv4" },
+                { title: "Choosing the RIGHT Font for Designs!", url: "http://www.youtube.com/watch?v=wU_3FSnMbBw" },
+              ],
+            },
+            {
+              title: "Module 4: Practical Projects",
+              description: "Apply your knowledge. Follow along with practical, real-world design projects to solidify your skills and build confidence.",
+              videos: [
+                { title: "REDESIGNING Beginners Photoshop Projects EP5", url: "http://www.youtube.com/watch?v=UEekMo3OWE0" },
+                { title: "Creating a Sports Design Poster | Photoshop Tutorial - Let's Create EP1", url: "http://www.youtube.com/watch?v=1u-MreTU_1E" },
+                { title: "Creating a F1 Sports Design Poster | Photoshop Tutorial - Let's Create EP2", url: "http://www.youtube.com/watch?v=fIRl0krHq-s" },
+                { title: "Creating a Sports Design Poster | Photoshop Tutorial - Let's Create EP6", url: "http://www.youtube.com/watch?v=e0UCqjS6g88" },
+              ],
+            },
+            {
+              title: "Module 5: Portfolio & Workflow",
+              description: "Prepare for the next step. Learn how to build a professional portfolio, refine your workflow, and get inspired.",
+              videos: [
+                { title: "These 4 Design Portfolio Tips WILL SAVE YOU!", url: "http://www.youtube.com/watch?v=LOoMczqA784" },
+                { title: "Creating a Clean Portfolio", url: "http://www.youtube.com/watch?v=CnPMKaLWga8" },
+                { title: "These Design Portfolios are AMAZING!! (Portfolio Reviews)", url: "http://www.youtube.com/watch?v=iOiiCDjwAQc" },
+                { title: "These Design Portfolios are INCREDIBLE!! (Portfolio Reviews)", url: "http://www.youtube.com/watch?v=Ii4X8umcPhs" },
+                { title: "These Design Portfolios are REALLY Impressive! (Portfolio Reviews)", url: "http://www.youtube.com/watch?v=VlvnyKIDQrU" },
+                { title: "Procrastination is Essential in the Design Process (Here's Why)", url: "http://www.youtube.com/watch?v=YAPSqjzhedg" },
+                { title: "Graphic Designers Inspiration HACK!", url: "http://www.youtube.com/watch?v=UnknE_U0HZ4" },
+              ],
+            },
+            {
+              title: "Module 6: Introduction to Kittl & Design Principles",
+              description: "Explore the powerful Kittl design tool and deepen your understanding of core graphic design principles.",
+              videos: [
+                { title: "The Basic Principles Of Graphic Design | Free Masterclass Course", url: "http://www.youtube.com/watch?v=aQI95mVeDXw" },
+                { title: "Learn KITTL in 7 Minutes (Beginner Tutorial)", url: "http://www.youtube.com/watch?v=4wTJ4ws2-TE" },
+                { title: "Updated Full Kittl Masterclass (Every Feature Explained)", url: "http://www.youtube.com/watch?v=FuDKHRWMXbw" },
+                { title: "NEW KITTL FEATURES YOU JUST NEED TO TRY 🔥", url: "http://www.youtube.com/watch?v=BruExTI1XgI" },
+              ],
+            },
+            {
+              title: "Module 7: Advanced Kittl Techniques & Trends",
+              description: "Master advanced techniques using Kittl and stay ahead with the latest graphic design trends for 2025.",
+              videos: [
+                { title: "10 Kittl HACKS You Should Know | Plus A Secret Design Technique! 👀", url: "http://www.youtube.com/watch?v=35qM6Yqwo2w" },
+                { title: "Graphic Design Trends for 2025! 🚨", url: "http://www.youtube.com/watch?v=eUABnGtzbrY" },
+                { title: "2025 Graphic Design Trends You Should Know", url: "http://www.youtube.com/watch?v=uuzDb3E2qlc" },
+                { title: "Vectorize your Own Illustrations in just 1 Click 😮", url: "http://www.youtube.com/watch?v=vlKknupgDhE" },
+                { title: "White Shades Every Designer Should Know 🤍", url: "http://www.youtube.com/watch?v=wFtH_lFptF0" },
+              ],
+            },
+          ]
+        };
+
+        // Function to remove duplicates from an array of video objects based on their 'url' property
+        function removeDuplicateVideos(modules) {
+            modules.forEach(module => {
+                const uniqueVideos = [];
+                const seenUrls = new Set();
+                module.videos.forEach(video => {
+                    if (!seenUrls.has(video.url)) {
+                        uniqueVideos.push(video);
+                        seenUrls.add(video.url);
+                    }
+                });
+                module.videos = uniqueVideos;
+            });
+            return modules;
+        }
+
+        // Apply the duplicate removal
+        courseData.modules = removeDuplicateVideos(courseData.modules);
+
+        const totalVideos = courseData.modules.reduce((sum, module) => sum + module.videos.length, 0);
+        let activeModuleIndex = 0;
+        let completedVideos = new Set();
+        let progressChart;
+
+        let db, auth;
+        let userId;
+        let progressDocRef;
+
+        async function setupFirebase() {
+            try {
+                const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+                const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                
+                await setPersistence(auth, browserLocalPersistence);
+
+                onAuthStateChanged(auth, async user => {
+                    if (user) {
+                        userId = user.uid;
+                        document.getElementById('userId').textContent = userId;
+                        progressDocRef = doc(db, `artifacts/${appId}/users/${userId}/courseProgress`, "sesoCourse");
+                        listenForProgressChanges();
+                    } else {
+                        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                        if (initialAuthToken) {
+                            await signInWithCustomToken(auth, initialAuthToken);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error("Firebase initialization failed:", error);
+                document.getElementById('userId').textContent = 'Error loading user';
+            }
+        }
+        
+        function listenForProgressChanges() {
+            if (!progressDocRef) return;
+            onSnapshot(progressDocRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    completedVideos = new Set(data.completed || []);
+                } else {
+                    completedVideos = new Set();
+                }
+                updateUI();
+            }, (error) => {
+                console.error("Error listening to progress changes:", error);
+            });
+        }
+        
+        async function saveProgress() {
+            if (!progressDocRef) return;
+            try {
+                await setDoc(progressDocRef, { completed: Array.from(completedVideos) });
+            } catch (error) {
+                console.error("Error saving progress:", error);
+            }
+        }
+
+        function isModuleCompleted(moduleIndex) {
+            const module = courseData.modules[moduleIndex];
+            return module.videos.every(video => completedVideos.has(video.url));
+        }
+
+        function renderModuleNav() {
+            const navContainer = document.getElementById('module-nav');
+            navContainer.innerHTML = '';
+            courseData.modules.forEach((module, index) => {
+                const button = document.createElement('button');
+                button.dataset.index = index;
+                button.textContent = module.title;
+
+                let isDisabled = false;
+                if (index > 0) {
+                    isDisabled = !isModuleCompleted(index - 1);
+                }
+
+                button.className = `px-4 py-2 text-sm font-semibold rounded-lg transition-colors duration-200 ${
+                    index === activeModuleIndex
+                        ? 'bg-blue-600 text-white shadow'
+                        : isDisabled
+                            ? 'bg-white text-blue-400 cursor-not-allowed disabled-module'
+                            : 'bg-white text-blue-700 hover:bg-blue-50'
+                }`;
+                button.disabled = isDisabled;
+                navContainer.appendChild(button);
+            });
+        }
+
+        function getYouTubeVideoId(url) {
+            const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+            const match = url.match(regExp);
+            return (match && match[2].length === 11) ? match[2] : null;
+        }
+
+        function renderModuleContent(moduleIndex) {
+            const module = courseData.modules[moduleIndex];
+            document.getElementById('module-title').textContent = module.title;
+            document.getElementById('module-description').textContent = module.description;
+
+            const grid = document.getElementById('video-grid');
+            grid.innerHTML = '';
+            let previousVideoCompletedInModule = true; // Tracks completion of the video immediately preceding the current one in the loop
+
+            module.videos.forEach((video, videoIndex) => {
+                const isCompleted = completedVideos.has(video.url);
+                const videoId = getYouTubeVideoId(video.url);
+                const embedUrl = videoId ? `https://www.youtube.com/embed/${videoId}?rel=0` : '';
+
+                let isMarkButtonDisabled = false;
+                let isCardHidden = false;
+
+                if (videoIndex > 0 && !previousVideoCompletedInModule) {
+                    isMarkButtonDisabled = true;
+                    isCardHidden = true; // Hide the card if the previous video is not completed
+                }
+
+                const card = document.createElement('div');
+                card.className = `p-4 rounded-lg flex flex-col justify-between transition-all duration-300 ${isCompleted ? 'bg-blue-50 border-2 border-blue-500' : 'bg-stone-100'} ${isCardHidden ? 'hidden-video-card' : ''}`;
+                
+                card.innerHTML = `
+                    <div>
+                        <h4 class="font-bold text-stone-800 mb-2">${video.title}</h4>
+                        ${videoId ? `
+                            <div class="video-responsive rounded-md overflow-hidden mb-4">
+                                <iframe src="${embedUrl}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                            </div>
+                        ` : `<p class="text-red-500 text-sm mb-4">Video not available or invalid URL.</p>`}
+                    </div>
+                    <div class="flex gap-2 mt-auto pt-4 border-t border-stone-200">
+                        <button data-url="${video.url}" class="toggle-complete w-full px-3 py-2 text-sm rounded-md transition-colors ${isCompleted ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'} ${isMarkButtonDisabled ? 'disabled-video-button' : ''}" ${isMarkButtonDisabled ? 'disabled' : ''}>
+                            ${isCompleted ? 'Mark Unwatched' : 'Mark Watched'}
+                        </button>
+                    </div>
+                `;
+                grid.appendChild(card);
+
+                // Update previousVideoCompletedInModule for the next iteration
+                previousVideoCompletedInModule = isCompleted;
+            });
+        }
+        
+        function updateUI() {
+            renderModuleNav();
+            renderModuleContent(activeModuleIndex);
+            updateChart();
+        }
+
+        function handleNavClick(event) {
+            const button = event.target.closest('button');
+            if (button && !button.disabled) {
+                const index = parseInt(button.dataset.index, 10);
+                if (index !== activeModuleIndex) {
+                    activeModuleIndex = index;
+                    updateUI();
+                }
+            }
+        }
+
+        function handleToggleComplete(event) {
+            const button = event.target.closest('.toggle-complete');
+            if (button && !button.disabled) { // Ensure button is not disabled
+                const url = button.dataset.url;
+                if (completedVideos.has(url)) {
+                    completedVideos.delete(url);
+                } else {
+                    completedVideos.add(url);
+                }
+                saveProgress();
+            }
+        }
+        
+        function setupChart() {
+            const ctx = document.getElementById('progressChart').getContext('2d');
+            progressChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Completed', 'Remaining'],
+                    datasets: [{
+                        data: [0, totalVideos],
+                        backgroundColor: ['#1d4ed8', '#f5f5f4'], /* Blue and light stone */
+                        borderColor: ['#1e40af', '#e7e5e4'], /* Darker blue and light stone border */
+                        borderWidth: 2,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%',
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { enabled: false }
+                    }
+                }
+            });
+        }
+        
+        function updateChart() {
+            const completedCount = completedVideos.size;
+            const remainingCount = totalVideos - completedCount;
+            const percentage = totalVideos > 0 ? Math.round((completedCount / totalVideos) * 100) : 0;
+            
+            if (progressChart) {
+                 progressChart.data.datasets[0].data = [completedCount, remainingCount];
+                 progressChart.update();
+            }
+
+            const progressTextEl = document.getElementById('progress-text');
+            const certificateSection = document.getElementById('certificate-section');
+            const userNameInput = document.getElementById('userNameInput');
+            const certificateDate = document.getElementById('certificateDate');
+
+            if (completedCount === 0) {
+                 progressTextEl.textContent = 'Complete a lesson to get started!';
+                 certificateSection.classList.add('hidden');
+            } else if (completedCount === totalVideos) {
+                 progressTextEl.textContent = `🎉 All modules complete! Congratulations! 🎉`;
+                 certificateSection.classList.remove('hidden');
+                 // Set initial value for input, if available from previous session or default
+                 userNameInput.value = localStorage.getItem('certificateUserName') || '';
+                 certificateDate.textContent = `Date: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`;
+            } else {
+                 progressTextEl.textContent = `${completedCount} of ${totalVideos} lessons completed (${percentage}%)`;
+                 certificateSection.classList.add('hidden');
+            }
+        }
+
+        window.addEventListener('load', () => {
+            setupChart();
+            setupFirebase();
+            document.getElementById('module-nav').addEventListener('click', handleNavClick);
+            document.getElementById('video-grid').addEventListener('click', handleToggleComplete);
+
+            const downloadAppButton = document.getElementById('downloadAppButton');
+            downloadAppButton.addEventListener('click', () => {
+                const htmlContent = document.documentElement.outerHTML;
+                const blob = new Blob([htmlContent], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'kryos_media_design_course_tracker.html';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            });
+
+            const downloadCertificateButton = document.getElementById('downloadCertificateButton');
+            downloadCertificateButton.addEventListener('click', () => {
+                const userNameInput = document.getElementById('userNameInput');
+                const originalDisplay = userNameInput.style.display;
+                
+                // Temporarily hide the input and display its value as text for html2canvas
+                userNameInput.style.display = 'none';
+                const tempNameSpan = document.createElement('span');
+                tempNameSpan.className = 'certificate-name';
+                tempNameSpan.textContent = userNameInput.value || 'Learner'; // Use 'Learner' if name is empty
+                userNameInput.parentNode.insertBefore(tempNameSpan, userNameInput); // Insert before the input
+
+                const certificateContent = document.getElementById('certificateContent');
+                html2canvas(certificateContent, { scale: 2, useCORS: true }).then(canvas => {
+                    const link = document.createElement('a');
+                    link.download = 'kryos_media_design_course_certificate.png';
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+
+                    // Restore original state after download
+                    userNameInput.style.display = originalDisplay;
+                    tempNameSpan.remove();
+                });
+            });
+
+            const userNameInput = document.getElementById('userNameInput');
+            userNameInput.addEventListener('input', () => {
+                // Save name to local storage for persistence across sessions
+                localStorage.setItem('certificateUserName', userNameInput.value);
+            });
+        });
+
+    </script>
+
+
+</body></html>
