@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kryos Media Design Course | Progress Tracker</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="data:application/manifest+json,{
+        &quot;name&quot;: &quot;Kryos Design Course&quot;,
+        &quot;short_name&quot;: &quot;Kryos Course&quot;,
+        &quot;start_url&quot;: &quot;.&quot;,
+        &quot;display&quot;: &quot;standalone&quot;,
+        &quot;background_color&quot;: &quot;#f9fafb&quot;,
+        &quot;theme_color&quot;: &quot;#2563eb&quot;,
+        &quot;description&quot;: &quot;A personal progress tracker for the Kryos Media Design Course.&quot;,
+        &quot;icons&quot;: [{
+            &quot;src&quot;: &quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E💎%3C/text%3E%3C/svg%3E&quot;,
+            &quot;sizes&quot;: &quot;192x192&quot;,
+            &quot;type&quot;: &quot;image/svg+xml&quot;
+        }, {
+            &quot;src&quot;: &quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E💎%3C/text%3E%3C/svg%3E&quot;,
+            &quot;sizes&quot;: &quot;512x512&quot;,
+            &quot;type&quot;: &quot;image/svg+xml&quot;
+        }]
+    }">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js for Progress Chart -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- html2canvas for Certificate Download -->
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+
+    <!-- Google Fonts: Montserrat -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Brush+Script+MT&display=swap" rel="stylesheet">
+
+    <!-- Favicon (Symbolic representation) -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💎</text></svg>">
+
+    <style>
+        /* Use Montserrat font as the base */
+        body {
+            font-family: 'Montserrat', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        /* Custom scrollbar for a cleaner look */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #e5e7eb; }
+        ::-webkit-scrollbar-thumb { background: #9ca3af; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+        
+        /* Style for disabled module links */
+        .module-disabled { cursor: not-allowed; }
+        
+        /* Style for the certificate name display */
+        #certificate-name-display {
+            font-family: 'Brush Script MT', 'cursive';
+        }
+        
+        /* Simple fade-in animation */
+        @keyframes fade-in {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fade-in 0.5s ease-out forwards;
+        }
+        
+        /* Carousel Styles */
+        .carousel {
+            display: flex;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none; /* Firefox */
+        }
+        .carousel::-webkit-scrollbar {
+            display: none; /* Safari and Chrome */
+        }
+        .carousel-item {
+            flex: 0 0 auto;
+            width: 300px;
+            scroll-snap-align: start;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 text-gray-800 font-sans antialiased">
+
+    <!-- Main Application Container -->
+    <div id="app-container" class="flex flex-col md:flex-row min-h-screen">
+        <!-- Sidebar and Main Content will be dynamically inserted here -->
+    </div>
+
+    <!-- Video Player Modal -->
+    <div id="video-modal-backdrop" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300">
+        <div id="video-modal-content" class="bg-black p-2 rounded-lg shadow-2xl w-full max-w-4xl transform scale-95 opacity-0 transition-all duration-300">
+            <div class="relative aspect-video">
+                <iframe id="video-player" class="absolute top-0 left-0 w-full h-full" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+            </div>
+            <button id="close-video-modal" class="absolute -top-4 -right-4 bg-white text-black h-10 w-10 rounded-full flex items-center justify-center font-bold text-xl">&times;</button>
+        </div>
+    </div>
+
+    <!-- Main Application Script -->
+    <script type="module">
+        // --- PWA Service Worker ---
+        if ('serviceWorker' in navigator) {
+            const swContent = `
+                const CACHE_NAME = 'kryos-course-cache-v1';
+                const urlsToCache = [
+                    '/',
+                    'https://cdn.tailwindcss.com',
+                    'https://cdn.jsdelivr.net/npm/chart.js',
+                    'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js',
+                    'https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=Brush+Script+MT&display=swap'
+                ];
+
+                self.addEventListener('install', event => {
+                    event.waitUntil(
+                        caches.open(CACHE_NAME)
+                            .then(cache => {
+                                console.log('Opened cache');
+                                return cache.addAll(urlsToCache);
+                            })
+                    );
+                });
+
+                self.addEventListener('fetch', event => {
+                    event.respondWith(
+                        caches.match(event.request)
+                            .then(response => {
+                                if (response) {
+                                    return response;
+                                }
+                                return fetch(event.request);
+                            }
+                        )
+                    );
+                });
+            `;
+            const swBlob = new Blob([swContent], { type: 'application/javascript' });
+            const swUrl = URL.createObjectURL(swBlob);
+
+            navigator.serviceWorker.register(swUrl)
+                .then(registration => {
+                    console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                })
+                .catch(error => {
+                    console.log('ServiceWorker registration failed: ', error);
+                });
+        }
+
+        // --- DATA & CONFIG ---
+        const ICONS = {
+            resources: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-6 w-6"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" /></svg>`,
+            certificate: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-6 w-6"><path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0l15.482 0m0 0l15.482 0" /></svg>`,
+            arrow: `<svg class="h-4 w-4 text-gray-400 transition-transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>`
+        };
+
+        const courseData = {
+          modules: [
+            { id: 1, title: "Getting Started", description: "Build a strong foundation. Learn the mindset, principles, and essential resources for any aspiring graphic designer.", videos: [{ title: "Why You're Not Growing as a Graphic Designer (Beginners)", url: "http://www.youtube.com/watch?v=xiMSsp7BApk", mandatory: true },{ title: "BAD Graphic Design: Tips for beginners EP2", url: "http://www.youtube.com/watch?v=f1vq7_E7YnM", mandatory: true },{ title: "BAD Graphic design: Tips for beginners!", url: "http://www.youtube.com/watch?v=Zx084IJnKkI" },{ title: "8 Best Free Sites All Graphic Designers Should Know! (2025)", url: "http://www.youtube.com/watch?v=WIu8CdaBxgQ" },{ title: "The BEST Graphic Design Sites in 2024", url: "http://www.youtube.com/watch?v=Ut-pV8PebWk" },{ title: "Best 5 FREE Sites All Graphic Designers Should Visit (2024)", url: "http://www.youtube.com/watch?v=woXDftwrLYE" },{ title: "5 Best FREE Sites All Designers Should Know (2023)", url: "http://www.youtube.com/watch?v=3KtGtEmY15w" },{ title: "17 BEST Sites All Graphic Designers Should Know! (2024)", url: "http://www.youtube.com/watch?v=mv3OB_X-s1U" },{ title: "My TOP 3 Essential Tools ALL DESIGNERS SHOULD HAVE", url: "http://www.youtube.com/watch?v=8AWq2DjHgUw" }], exercises: [{ id: "ex1_req", title: "Spot the Design Mistakes", description: "Create a screenshot of a design with mistakes, and mark what’s wrong. Size: 1080×1080 px (square), 300 DPI, JPG or PNG. Include: Highlight or circle at least 3 design issues like font choice, spacing, or alignment. Why it matters: Helps you learn how to spot what makes a design look messy.", required: true },{ id: "ex1_opt1", title: "Logo Critique Breakdown", optional: true, description: "Find a logo you think is ineffective. Write a short critique (2-3 sentences) explaining why, focusing on principles like clarity, scalability, or relevance." },{ id: "ex1_opt2", title: "Everyday Object Redesign", optional: true, description: "Sketch a redesign of an everyday object's packaging (e.g., a milk carton, cereal box). Focus on improving hierarchy and visual appeal." }] },
+            { id: 2, title: "Photoshop & Design Principles", description: "Dive into the most powerful design tool. Learn fundamental Photoshop skills and core design principles to make your work stand out.", videos: [{ title: "Master Photoshop for Beginners With These 9 Tools (2023)", url: "http://www.youtube.com/watch?v=Eitbz_BeDKk", mandatory: true },{ title: "4 BEST Ways to make Designs POP in Photoshop! (Beginners)", url: "http://www.youtube.com/watch?v=Zetw0QBYUO4", mandatory: true },{ title: "2 Ways to Make Your Designs POP! (Beginners/Advanced)", url: "http://www.youtube.com/watch?v=6UeMs-bdJOg" },{ title: "Photoshop Tutorial: Esports Player Banner/Ad Design", url: "http://www.youtube.com/watch?v=tWvsxXE8Jn8" },{ title: "Photoshop Tutorial: Creating a Clean White Banner Design", url: "http://www.youtube.com/watch?v=YuN_9BgUOWE" },{ title: "Photoshop Tutorial | Creating Multi-Colored Banners", url: "http://www.youtube.com/watch?v=w8WROkxIiEM" },{ title: "Photoshop Tutorial: Creative Colorful Abstract Banner Design", url: "http://www.youtube.com/watch?v=sf9gagcU0zQ" },{ title: "Professional Designer Create a Poster TOTALLY COLORBLIND?!", url: "http://www.youtube.com/watch?v=0xFmwcz-R1o" }], exercises: [{ id: "ex2_req", title: "Photoshop Before & After", description: "Create a side-by-side 'before and after' of a design you improved using Photoshop. Size: 1080×1080 px or 1200×1500 px, 300 DPI, JPG or PNG. Include: Original design vs. your improved version with better spacing, colors, and layout. Why it matters: Teaches you how to apply design basics to make posts look more polished.", required: true },{ id: "ex2_opt1", title: "Mood Board to Social Graphic", optional: true, description: "Create a small mood board for a fictional brand. Then, design one social media graphic based on that mood board's colors, fonts, and imagery." },{ id: "ex2_opt2", title: "Surreal Photo Composite", optional: true, description: "Combine two or more unrelated photos in Photoshop to create a surreal or impossible scene. Focus on blending, lighting, and shadows." }] },
+            { id: 3, title: "Typography & Text", description: "Words are pictures. Learn the art of typography to create compelling layouts and communicate your message effectively.", videos: [{ title: "5 Techniques For BETTER Typography/Text Layouts! (Beginners)", url: "http://www.youtube.com/watch?v=qzrKARm3v0w", mandatory: true },{ title: "11 Photoshop Text Effects AMAZING For BEGINNERS! (2024)", url: "http://www.youtube.com/watch?v=BQcUrAIttjM", mandatory: true },{ title: "3 Ways to Improve your Typography/Text! (Beginners)", url: "http://www.youtube.com/watch?v=xadOW6Mlvv4" },{ title: "Choosing the RIGHT Font for Designs!", url: "http://www.youtube.com/watch?v=wU_3FSnMbBw" }], exercises: [{ id: "ex3_req", title: "Font Pairing Challenge", description: "Create a graphic with different font pairings—some good, some bad. Size: 1080×1350 px (portrait), 300 DPI, JPG or PNG. Include: A short quote or phrase styled in 2–3 font combos. One version should be 'wrong.' Why it matters: Helps you understand how fonts work together and what to avoid.", required: true },{ id: "ex3_opt1", title: "Typographic Quote Poster", optional: true, description: "Design a poster (1080x1350px) that features a favorite quote. The design should be purely typographic, using size, weight, and layout to create visual interest." },{ id: "ex3_opt2", title: "Album Art Typography Focus", optional: true, description: "Redesign the typography for an existing album cover. Keep the original image but replace the artist's name and album title with your own font choices and layout." }] },
+            { id: 4, title: "Practical Projects", description: "Apply your knowledge. Follow along with practical, real-world design projects to solidify your skills and build confidence.", videos: [{ title: "REDESIGNING Beginners Photoshop Projects EP5", url: "http://www.youtube.com/watch?v=UEekMo3OWE0", mandatory: true },{ title: "Creating a Sports Design Poster | Photoshop Tutorial - Let's Create EP1", url: "http://www.youtube.com/watch?v=1u-MreTU_1E", mandatory: true },{ title: "Creating a F1 Sports Design Poster | Photoshop Tutorial - Let's Create EP2", url: "http://www.youtube.com/watch?v=fIRl0krHq-s" },{ title: "Creating a Sports Design Poster | Photoshop Tutorial - Let's Create EP6", url: "http://www.youtube.com/watch?v=e0UCqjS6g88" }], exercises: [{ id: "ex4_req", title: "Fake Client Ad Project", description: "Create a fake ad or promo post for a made-up business. Size: 1080×1350 px (portrait), 300 DPI, JPG or PNG. Include: A made-up brand name, logo (even basic), product or service, and a short caption. Why it matters: Prepares you to design for real clients by using your imagination.", required: true },{ id: "ex4_opt1", title: "Event Flyer Design", optional: true, description: "Design a flyer for a fictional event (e.g., a local concert, a farmers market, a coding workshop). Include all necessary information like date, time, location, and a call to action." },{ id: "ex4_opt2", title: "Fictional Startup Web Banner", optional: true, description: "Design a hero banner for the website of a fictional tech startup. The banner should clearly communicate what the startup does and have a compelling visual." }] },
+            { id: 5, title: "Portfolio & Workflow", description: "Prepare for the next step. Learn how to build a professional portfolio, refine your workflow, and get inspired.", videos: [{ title: "These 4 Design Portfolio Tips WILL SAVE YOU!", url: "http://www.youtube.com/watch?v=LOoMczqA784", mandatory: true },{ title: "Creating a Clean Portfolio", url: "http://www.youtube.com/watch?v=CnPMKaLWga8", mandatory: true },{ title: "These Design Portfolios are AMAZING!! (Portfolio Reviews)", url: "http://www.youtube.com/watch?v=iOiiCDjwAQc" },{ title: "These Design Portfolios are INCREDIBLE!! (Portfolio Reviews)", url: "http://www.youtube.com/watch?v=Ii4X8umcPhs" },{ title: "These Design Portfolios are REALLY Impressive! (Portfolio Reviews)", url: "http://www.youtube.com/watch?v=VlvnyKIDQrU" },{ title: "Procrastination is Essential in the Design Process (Here's Why)", url: "http://www.youtube.com/watch?v=YAPSqjzhedg" },{ title: "Graphic Designers Inspiration HACK!", url: "http://www.youtube.com/watch?v=UnknE_U0HZ4" }], exercises: [{ id: "ex5_req", title: "3-Slide Portfolio Intro", description: "Create a 3-slide portfolio preview introducing yourself. Size: 1080×1080 px per slide, 300 DPI, JPG or PNG. Include: Slide 1: Who you are, Slide 2: What you design, Slide 3: Your favorite design. Why it matters: It’s your mini design intro—great for future clients and job applications.", required: true },{ id: "ex5_opt1", title: "Designer Bio for LinkedIn/Website", optional: true, description: "Write a short (3-5 sentence) professional bio for yourself. Focus on your skills, what you're passionate about designing, and your career goals." },{ id: "ex5_opt2", title: "Mini Case Study Slide", optional: true, description: "Take one of your completed projects and create a single slide (1920x1080px) that briefly explains the problem, your process, and the solution." }] },
+            { id: 6, title: "Introduction to Kittl & Design Principles", description: "Explore the powerful Kittl design tool and deepen your understanding of core design principles.", videos: [{ title: "The Basic Principles Of Graphic Design | Free Masterclass Course", url: "http://www.youtube.com/watch?v=aQI95mVeDXw", mandatory: true },{ title: "Learn KITTL in 7 Minutes (Beginner Tutorial)", url: "http://www.youtube.com/watch?v=4wTJ4ws2-TE", mandatory: true },{ title: "Updated Full Kittl Masterclass (Every Feature Explained)", url: "http://www.youtube.com/watch?v=FuDKHRWMXbw" },{ title: "NEW KITTL FEATURES YOU JUST NEED TO TRY 🔥", url: "http://www.youtube.com/watch?v=BruExTI1XgI" }], exercises: [{ id: "ex6_req", title: "Kittl Value Poster", description: "Create a poster based on a value you believe in. Size: 1080×1350 px (portrait), 300 DPI, JPG or PNG. Include: A big word like 'Discipline' or 'Growth,' with visuals and nice layout. Why it matters: Builds your creative voice and teaches design balance.", required: true },{ id: "ex6_opt1", title: "Vintage T-Shirt Design in Kittl", optional: true, description: "Use Kittl's vintage and retro elements to create a t-shirt graphic for a fictional band or brand. Focus on texture and layout." },{ id: "ex6_opt2", title: "Abstract Pattern/Background in Kittl", optional: true, description: "Use Kittl's object and shape tools to create a unique, seamless abstract pattern. Experiment with color, rotation, and scale." }] },
+            { id: 7, title: "Advanced Kittl Techniques & Trends", description: "Master advanced techniques using Kittl and stay ahead with the latest graphic design trends for 2025.", videos: [{ title: "10 Kittl HACKS You Should Know | Plus A Secret Design Technique! 👀", url: "http://www.youtube.com/watch?v=35qM6Yqwo2w", mandatory: true },{ title: "Graphic Design Trends for 2025! 🚨", url: "http://www.youtube.com/watch?v=eUABnGtzbrY", mandatory: true },{ title: "2025 Graphic Design Trends You Should Know", url: "http://www.youtube.com/watch?v=uuzDb3E2qlc" },{ title: "Vectorize your Own Illustrations in just 1 Click 😮", url: "http://www.youtube.com/watch?v=vlKknupgDhE" },{ title: "White Shades Every Designer Should Know 🤍", url: "http://www.youtube.com/watch?v=wFtH_lFptW0" }], exercises: [{ id: "ex7_req", title: "Trend Rework Design", description: "Create a 'before and after' of one of your older designs updated with 2025 design trends. Size: 1080×1080 px or 1080×1350 px, 300 DPI, JPG or PNG. Include: Old version next to new version. Add bold fonts, grain textures, or trendy layouts. Why it matters: Helps you stay updated and improve past work using new styles.", required: true },{ id: "ex7_opt1", title: "2025 Trend Application Challenge", optional: true, description: "Pick one trend mentioned in the videos (e.g., 'Pixelated Nostalgia', 'Eco-futurism') and create a new, original design that embodies that trend." },{ id: "ex7_opt2", title: "Animated Social Post Concept", optional: true, description: "Design a static frame for a social media post in Kittl or Photoshop, but add notes or a storyboard sketch explaining how you would animate it." }] }
+          ],
+          resources: { "Kryos Guides": [{ title: "Beginner Graphic Design Tips", channel: "Kryos", desc: "Essential tips to avoid common mistakes.", url: "http://www.youtube.com/watch?v=Zx084IJnKkI", img: "https://img.youtube.com/vi/Zx084IJnKkI/mqdefault.jpg" },{ title: "Improve Your Typography", channel: "Kryos", desc: "Simple techniques for better text layouts.", url: "http://www.youtube.com/watch?v=qzrKARm3v0w", img: "https://img.youtube.com/vi/qzrKARm3v0w/mqdefault.jpg" }], "Mentorship Videos": [{ title: "Portfolio Reviews", channel: "Kryos", desc: "Learn from reviews of other designers' portfolios.", url: "http://www.youtube.com/watch?v=iOiiCDjwAQc", img: "https://img.youtube.com/vi/iOiiCDjwAQc/mqdefault.jpg" },{ title: "Growing as a Designer", channel: "Kryos", desc: "Overcome common hurdles for beginner designers.", url: "http://www.youtube.com/watch?v=xiMSsp7BApk", img: "https://img.youtube.com/vi/xiMSsp7BApk/mqdefault.jpg" }], "Color Tools": [{ title: "Coolors", channel: "coolors.co", desc: "Fast color scheme generator. Explore trending palettes.", url: "https://coolors.co/", img: "https://i.ibb.co/L51h1T1/coolors.png" },{ title: "Adobe Color", channel: "Adobe", desc: "Create color themes with the color wheel or browse from Kuler.", url: "https://color.adobe.com/", img: "https://i.ibb.co/yY1hNwn/adobe-color.png" }], "Font Tools": [{ title: "Google Fonts", channel: "Google", desc: "A robust library of free, open-source fonts.", url: "https://fonts.google.com/", img: "https://i.ibb.co/GvxYv2V/google-fonts.png" },{ title: "Fontjoy", channel: "fontjoy.com", desc: "An AI-powered tool to help you generate font pairings.", url: "https://fontjoy.com/", img: "https://i.ibb.co/tZ56Vb4/fontjoy.png" }], "Image & Illustration": [{ title: "Unsplash", channel: "Unsplash", desc: "The internet’s source of freely-usable images.", url: "https://unsplash.com/", img: "https://i.ibb.co/yQGgH7y/unsplash.png" },{ title: "Freepik", channel: "Freepik", desc: "High-quality vectors, stock photos, and PSD files.", url: "https://www.freepik.com/", img: "https://i.ibb.co/3s682Cq/freepik.png" },{ title: "Pexels", channel: "Pexels", desc: "Free stock photos & videos shared by talented creators.", url: "https://www.pexels.com/", img: "https://i.ibb.co/J3Fq7gY/pexels.png" }], "Mockups & Inspiration": [{ title: "Behance", channel: "Adobe", desc: "Showcase and discover the latest work from top designers.", url: "https://www.behance.net/", img: "https://i.ibb.co/rfnL15G/behance.png" },{ title: "Dribbble", channel: "Dribbble", desc: "A community for creatives to share, grow, and get hired.", url: "https://dribbble.com/", img: "https://i.ibb.co/mHkC75g/dribbble.png" },{ title: "Pinterest", channel: "Pinterest", desc: "A visual discovery engine for finding design ideas.", url: "https://www.pinterest.com/", img: "https://i.ibb.co/R9mQp4n/pinterest.png" }] }
+        };
+
+        // --- APPLICATION STATE (IN-MEMORY) ---
+        
+        function getInitialCompletedState() {
+            const state = {};
+            courseData.modules.forEach(module => {
+                module.videos.forEach((video, index) => { state[`v-${module.id}-${index}`] = false; });
+                module.exercises.forEach(exercise => { state[exercise.id] = false; });
+            });
+            return state;
+        }
+
+        let userProgress = { completed: getInitialCompletedState(), certificateName: "" };
+        let progressChart = null;
+        let currentView = { type: 'home' };
+        
+        // --- INITIALIZATION ---
+        
+        function initializeAppUI() {
+            render();
+            setupEventListeners();
+        }
+
+        // --- RENDERING LOGIC ---
+
+        function render() {
+            if (currentView.type === 'home') {
+                document.getElementById('app-container').innerHTML = renderHomepage();
+            } else {
+                document.getElementById('app-container').innerHTML = renderCourseLayout();
+                updateModuleStates();
+                renderSidebar();
+                renderMainContent();
+            }
+        }
+        
+        function renderHomepage() {
+            return `
+                <main class="w-full min-h-screen flex flex-col items-center justify-center p-6 text-center animate-fade-in">
+                    <h1 class="text-5xl font-extrabold text-gray-900">Welcome to the Kryos Media Design Course</h1>
+                    <p class="mt-4 text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">This interactive tracker will guide you through 7 modules, from design fundamentals to advanced techniques, helping you build a strong portfolio and master your craft.</p>
+                    <div class="mt-8 w-full max-w-md">
+                        <input type="text" id="name-input" placeholder="Please enter your name to begin..." class="w-full bg-white border border-gray-300 text-gray-900 text-lg rounded-lg px-4 py-3 focus:ring-blue-500 focus:border-blue-500 shadow-sm">
+                        <button id="start-course-btn" class="mt-4 w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 transition-transform transform hover:scale-105 shadow-lg shadow-blue-600/30">Start Course</button>
+                    </div>
+                     <p class="mt-8 text-sm text-gray-500">
+                        Before you start, please review the <a href="https://drive.google.com/drive/folders/1v6f_jRL44kuhMICJIRUkX1jKrQBcg8_9?usp=drive_link" target="_blank" class="text-blue-600 hover:underline font-medium">Kryos Media Brand Guide</a>.
+                    </p>
+                    <p class="mt-4 text-xs text-gray-400 max-w-md mx-auto">
+                        Please note: This version of the app does not save your progress. If you close or refresh your browser, you will need to start over.
+                    </p>
+                </main>
+            `;
+        }
+        
+        function renderCourseLayout() {
+            return `
+                <aside id="sidebar" class="w-full md:w-72 lg:w-80 bg-white p-6 border-b-2 md:border-b-0 md:border-r-2 border-gray-100 flex-shrink-0">
+                    <div class="flex items-center gap-4 mb-8 h-12">
+                         <h1 class="text-2xl font-bold text-gray-900">Kryos Media</h1>
+                    </div>
+                    <nav id="module-nav" class="space-y-2"></nav>
+                    <div class="mt-8 pt-8 border-t border-gray-200 space-y-2">
+                        <a href="#resources" data-view-type="resources" class="nav-item flex items-center gap-3 px-4 py-3">
+                            <span class="icon-wrapper"></span>
+                            <span>Free Resources</span>
+                        </a>
+                        <a href="#certificate" id="certificate-link" data-view-type="certificate" class="nav-item flex items-center gap-3 px-4 py-3">
+                            <span class="icon-wrapper"></span>
+                            <span>Certificate</span>
+                            <span id="certificate-unlocked-badge" class="hidden ml-auto text-xs bg-green-100 text-green-800 font-semibold px-2 py-0.5 rounded-full">✨ Unlocked!</span>
+                        </a>
+                    </div>
+                </aside>
+                <main id="main-content" class="flex-1 p-6 sm:p-8 md:p-10 lg:p-12 bg-gray-50 overflow-y-auto"></main>
+            `;
+        }
+
+        function renderSidebar() {
+            document.querySelector('[data-view-type="resources"] .icon-wrapper').innerHTML = ICONS.resources;
+            document.querySelector('[data-view-type="certificate"] .icon-wrapper').innerHTML = ICONS.certificate;
+
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.add('text-gray-600', 'font-medium', 'rounded-lg', 'hover:bg-blue-50', 'hover:text-blue-600', 'transition-colors');
+            });
+
+            const nav = document.getElementById('module-nav');
+            nav.innerHTML = courseData.modules.map(module => {
+                const isActive = currentView.type === 'module' && currentView.id === module.id;
+                const isCompleted = module.isCompleted;
+                const isLocked = module.isLocked;
+
+                let icon;
+                if(isCompleted) {
+                     icon = `<span class="h-7 w-7 flex items-center justify-center text-sm font-bold rounded-full bg-green-100 text-green-700">${module.id}</span>`;
+                } else if (isLocked) {
+                    icon = `<span class="h-7 w-7"></span>`; // Empty span for alignment
+                } else {
+                    icon = `<span class="h-7 w-7 flex items-center justify-center text-sm font-bold rounded-full bg-gray-200 text-gray-600">${module.id}</span>`;
+                }
+
+                return `
+                    <a href="#module${module.id}" 
+                       data-view-type="module" 
+                       data-view-id="${module.id}"
+                       class="nav-link flex items-center gap-4 px-4 py-3 rounded-lg transition-colors
+                           ${isLocked ? 'module-disabled opacity-50' : 'hover:bg-blue-50 hover:text-blue-600'}
+                           ${isActive ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-600 font-medium'}
+                           ${isCompleted && !isActive ? 'bg-green-50 text-green-800' : ''}">
+                       ${icon}
+                       <span>${module.title}</span>
+                    </a>
+                `;
+            }).join('');
+        }
+
+        function renderMainContent() {
+            const main = document.getElementById('main-content');
+            switch(currentView.type) {
+                case 'module': main.innerHTML = renderModule(courseData.modules.find(m => m.id === currentView.id)); break;
+                case 'resources': main.innerHTML = renderResources(); break;
+                case 'certificate': main.innerHTML = renderCertificate(); break;
+            }
+            updateProgressChart(); // Always update chart after content render
+            if (currentView.type === 'certificate') {
+                const nameInput = document.getElementById('certificate-name-input');
+                if (nameInput) {
+                    nameInput.addEventListener('input', (e) => {
+                        document.getElementById('certificate-name-display').textContent = e.target.value || "Your Name Here";
+                        userProgress.certificateName = e.target.value;
+                    });
+                }
+                const downloadBtn = document.getElementById('download-cert-btn');
+                if (downloadBtn) {
+                    downloadBtn.addEventListener('click', downloadCertificate);
+                }
+            }
+            if (currentView.type === 'module') {
+                 const chatInput = document.getElementById('chat-input');
+                 const chatSendBtn = document.getElementById('chat-send-btn');
+                 if(chatInput && chatSendBtn) {
+                    chatSendBtn.addEventListener('click', handleChatMessage);
+                    chatInput.addEventListener('keypress', (e) => {
+                        if (e.key === 'Enter') {
+                            handleChatMessage();
+                        }
+                    });
+                 }
+            }
+            window.scrollTo(0, 0);
+        }
+
+        function renderModule(module) {
+            const mandatoryVideos = module.videos.filter(v => v.mandatory);
+            const optionalVideos = module.videos.filter(v => !v.mandatory);
+
+            const mandatoryVideosHtml = mandatoryVideos.map((video, index) => renderChecklistItem(`v-${module.id}-${index}`, video.title, video.url, video.mandatory, video.description, module)).join('');
+            const optionalVideosHtml = optionalVideos.map((video, index) => {
+                const originalIndex = module.videos.indexOf(video);
+                return renderVideoCarouselItem(`v-${module.id}-${originalIndex}`, video.title, video.url);
+            }).join('');
+
+            const exercisesHtml = module.exercises.map(ex => renderChecklistItem(ex.id, ex.title, null, ex.required, ex.description, module)).join('');
+            
+            return `<div class="space-y-8 animate-fade-in"> <div class="relative bg-white p-8 rounded-xl flex flex-col sm:flex-row items-center gap-8 border border-gray-200 shadow-sm"> <div class="relative w-36 h-36 flex-shrink-0"> <canvas id="progress-chart"></canvas> <div id="progress-text" class="absolute inset-0 flex items-center justify-center text-4xl font-extrabold text-gray-900"></div> </div> <div class="text-center sm:text-left"> <h2 class="text-4xl font-extrabold text-gray-900">${module.title}</h2> <p class="mt-2 text-gray-600 max-w-xl text-lg leading-relaxed">${module.description}</p> </div> </div> <div class="grid grid-cols-1 lg:grid-cols-2 gap-8"> <div class="bg-white p-8 rounded-xl border border-gray-200 shadow-sm space-y-6"> <div><h3 class="text-xl font-bold text-blue-600 border-b border-gray-200 pb-4 mb-4">🎥 Mandatory Videos</h3> <div class="space-y-3">${mandatoryVideosHtml}</div></div> ${optionalVideos.length > 0 ? `<div><h4 class="text-lg font-semibold text-gray-700 mb-3">Optional Videos</h4><div class="carousel space-x-4 pb-2">${optionalVideosHtml}</div></div>` : ''} </div> <div class="bg-white p-8 rounded-xl border border-gray-200 shadow-sm"> <h3 class="text-xl font-bold text-blue-600 border-b border-gray-200 pb-4 mb-4">✏️ Practical Exercises</h3> <p class="text-base text-gray-500 mb-4 leading-relaxed">Complete the <strong>mandatory</strong> exercise (or at least one optional) to help unlock the next module.</p> <div class="space-y-3">${exercisesHtml}</div> <div class="mt-8 pt-8 border-t border-gray-200 text-center"> <a href="https://drive.google.com/drive/folders/1v6f_jRL44kuhMICJIRUkX1jKrQBcg8_9?usp=sharing" target="_blank" class="inline-block bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 transition-transform transform hover:scale-105 shadow-lg shadow-blue-600/30"> Upload Your Work Here </a> <p class="text-sm text-gray-500 mt-2">Share your creations in the Kryos community folder!</p> </div> </div> </div> <div class="bg-white p-8 rounded-xl border border-gray-200 shadow-sm"> <h3 class="text-xl font-bold text-blue-600 border-b border-gray-200 pb-4 mb-4">🤖 AI Design Assistant</h3> <p class="text-base text-gray-500 mb-4 leading-relaxed">Have a question about this module? Ask the AI assistant for help, ideas, or clarification.</p> <div id="chat-history" class="p-4 bg-gray-100 rounded-lg min-h-[200px] max-h-[300px] overflow-y-auto text-gray-700 leading-relaxed space-y-4"></div> <div class="mt-4 flex gap-2"> <input type="text" id="chat-input" placeholder="Ask about ${module.title}..." class="flex-grow bg-gray-100 border border-gray-300 text-gray-900 text-base rounded-lg px-4 py-3 focus:ring-blue-500 focus:border-blue-500"> <button id="chat-send-btn" class="bg-blue-600 text-white font-bold py-3 px-5 rounded-lg hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20">Send</button> </div> </div> </div>`;
+        }
+        
+        function renderChecklistItem(id, title, url, isMandatory, description, module) {
+            const isChecked = userProgress.completed[id];
+            const isExercise = !url;
+            const exercisesLocked = isExercise && !module.mandatoryVideosCompleted;
+            const videoId = url ? new URL(url).searchParams.get('v') : null;
+
+            const content = url 
+                ? `<div class="aspect-video rounded-lg overflow-hidden mb-2"><iframe class="w-full h-full" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div><p class="font-medium">${title}</p>`
+                : `<div class="flex items-center justify-between w-full cursor-pointer" onclick="event.preventDefault(); event.stopPropagation(); document.getElementById('desc-${id}').classList.toggle('hidden'); this.querySelector('svg').classList.toggle('rotate-180')"><span class="font-medium">${title}</span> ${ICONS.arrow}</div>`;
+            
+            const highlightClass = isMandatory ? 'bg-blue-50' : '';
+
+            return `<div class="flex items-start gap-4 p-4 rounded-lg transition-colors ${isChecked ? 'bg-green-50' : ''} ${exercisesLocked ? 'bg-gray-100 opacity-60' : ''} ${highlightClass}"> <input type="checkbox" id="${id}" data-item-id="${id}" class="checklist-item mt-1 h-5 w-5 rounded bg-gray-200 border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer" ${isChecked ? 'checked' : ''} ${exercisesLocked ? 'disabled' : ''}> <div class="flex-1"> <div class="text-gray-800 ${isChecked ? 'line-through text-gray-500' : ''}"> ${content} </div> ${isMandatory ? '<span class="mt-2 inline-block text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded-full font-semibold">Mandatory</span>' : ''} ${description ? `<p id="desc-${id}" class="hidden mt-2 text-sm text-gray-600 pl-2 border-l-2 border-gray-300 leading-relaxed">${description}</p>` : ''} ${exercisesLocked ? `<p class="text-xs text-amber-600 mt-1">Complete mandatory videos to unlock.</p>` : ''} </div> </div>`;
+        }
+        
+        function renderVideoCarouselItem(id, title, url) {
+            const videoId = new URL(url).searchParams.get('v');
+            return `<div class="carousel-item space-y-2">
+                <div class="aspect-video rounded-lg overflow-hidden bg-black cursor-pointer" data-video-id="${videoId}">
+                    <img src="https://img.youtube.com/vi/${videoId}/mqdefault.jpg" class="w-full h-full object-cover">
+                </div>
+                <p class="text-sm font-medium text-gray-700">${title}</p>
+            </div>`;
+        }
+
+        function renderResources() {
+            const categoriesHtml = Object.keys(courseData.resources).map(category => {
+                const itemsHtml = courseData.resources[category].map(item => `<a href="${item.url}" target="_blank" class="block bg-white rounded-xl overflow-hidden hover:ring-2 hover:ring-blue-500 transition-all duration-200 group border border-gray-200 shadow-sm"> <img src="${item.img}" alt="${item.title}" class="w-full h-32 object-cover" onerror="this.style.display='none'; this.parentElement.insertAdjacentHTML('afterbegin', '<div class=\\'w-full h-32 bg-gray-200 flex items-center justify-center\\'><p class=\\'text-gray-500\\'>No Image</p></div>');"> <div class="p-5"> <h4 class="font-bold text-gray-900 truncate group-hover:text-blue-600">${item.title}</h4> <p class="text-sm text-gray-600">${item.channel}</p> <p class="text-xs text-gray-500 mt-2 leading-relaxed">${item.desc}</p> </div> </a>`).join('');
+                return `<div> <h3 class="text-2xl font-bold text-blue-600 mb-4">${category}</h3> <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"> ${itemsHtml} </div> </div>`;
+            }).join('');
+            return `<div class="animate-fade-in"> <h2 class="text-4xl font-extrabold text-gray-900 mb-8">💎 Free Design Resources</h2> <div class="space-y-10">${categoriesHtml}</div> </div>`;
+        }
+
+        function renderCertificate() {
+            const currentDate = new Date('2025-07-20T00:22:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+            return `<div class="text-center animate-fade-in"> <h2 class="text-4xl font-extrabold text-gray-900 mb-2">Congratulations, ${userProgress.certificateName || 'Designer'}! 🎉</h2> <p class="text-gray-600 mb-8 text-lg">You have completed the Kryos Media Design Course. Personalize and download your certificate below.</p> <div id="certificate-wrapper" class="max-w-4xl mx-auto bg-white p-6 rounded-xl border border-gray-200 shadow-sm"> <div id="certificate" class="bg-white text-gray-800 p-8 sm:p-12 aspect-[1.414/1] relative border-8 border-blue-500 flex flex-col justify-center items-center"> <div class="absolute top-0 left-0 w-full h-full bg-no-repeat bg-center bg-cover opacity-5" style="background-image: url('https://www.transparenttextures.com/patterns/az-subtle.png');"></div> <div class="absolute top-4 left-4 right-4 bottom-4 border-2 border-blue-300"></div> <h2 class="text-2xl font-bold text-gray-800 mb-4 z-10">Kryos Media</h2> <h3 class="text-xl sm:text-2xl font-semibold text-gray-600 tracking-widest z-10">CERTIFICATE OF COMPLETION</h3> <p class="text-base sm:text-lg mt-4 z-10">This certifies that</p> <p id="certificate-name-display" class="text-3xl sm:text-5xl font-bold text-blue-600 my-4 py-2 border-b-2 border-gray-300 z-10 min-h-[50px]">${userProgress.certificateName || "Your Name Here"}</p> <p class="text-base sm:text-lg text-center max-w-md z-10 leading-relaxed">has successfully completed the <strong>Kryos Media Design Course</strong>, demonstrating proficiency in graphic design principles, software usage, and project execution.</p> <div class="flex justify-between w-full mt-auto pt-6 text-xs sm:text-sm z-10"> <div class="text-center"> <p class="font-bold border-b-2 border-gray-400 px-4">Kryos Media</p> <p class="mt-1">Instructor</p> </div> <div class="text-center"> <p class="font-bold border-b-2 border-gray-400 px-4">${currentDate}</p> <p class="mt-1">Date of Completion</p> </div> </div> </div> </div> <div class="mt-8"> <input type="text" id="certificate-name-input" placeholder="Enter your full name" value="${userProgress.certificateName}" class="bg-gray-100 border border-gray-300 text-gray-900 text-center text-lg rounded-lg px-4 py-3 w-full max-w-md mx-auto focus:ring-blue-500 focus:border-blue-500"> <button id="download-cert-btn" class="mt-4 bg-green-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-green-700 transition-transform transform hover:scale-105 shadow-lg shadow-green-600/30"> Download Certificate (PNG) </button> </div> </div>`;
+        }
+
+        // --- PROGRESS & STATE LOGIC ---
+
+        function updateModuleStates() {
+            let allMandatoryTasksCompleted = true;
+            courseData.modules.forEach((module, index) => {
+                const mandatoryVideos = module.videos.filter(v => v.mandatory);
+                const requiredExercise = module.exercises.find(e => e.required);
+                
+                module.mandatoryVideosCompleted = mandatoryVideos.every((v, i) => userProgress.completed[`v-${module.id}-${i}`]);
+                const requiredExerciseDone = userProgress.completed[requiredExercise.id];
+                module.isCompleted = module.mandatoryVideosCompleted && requiredExerciseDone;
+
+                if (index > 0) {
+                    const prevModule = courseData.modules[index - 1];
+                    const prevAtLeastOneExerciseDone = prevModule.exercises.some(e => userProgress.completed[e.id]);
+                    module.isLocked = !(prevModule.mandatoryVideosCompleted && prevAtLeastOneExerciseDone);
+                } else { module.isLocked = false; }
+                if (!module.isCompleted) { allMandatoryTasksCompleted = false; }
+            });
+            const certLink = document.getElementById('certificate-link');
+            if (certLink) {
+                certLink.classList.toggle('module-disabled', !allMandatoryTasksCompleted);
+                document.getElementById('certificate-unlocked-badge').classList.toggle('hidden', !allMandatoryTasksCompleted);
+            }
+        }
+
+        function calculateOverallProgress() {
+            const mandatoryItems = [];
+            courseData.modules.forEach(module => {
+                module.videos.forEach((v, i) => { if (v.mandatory) mandatoryItems.push(`v-${module.id}-${i}`); });
+                const reqEx = module.exercises.find(e => e.required);
+                if (reqEx) mandatoryItems.push(reqEx.id);
+            });
+            const completedCount = mandatoryItems.filter(id => userProgress.completed[id]).length;
+            return mandatoryItems.length === 0 ? 0 : Math.round((completedCount / mandatoryItems.length) * 100);
+        }
+
+        function updateProgressChart() {
+            const canvas = document.getElementById('progress-chart');
+            if (!canvas) {
+                if(progressChart) {
+                    progressChart.destroy();
+                    progressChart = null;
+                }
+                return;
+            }
+            
+            const progress = calculateOverallProgress();
+            if (document.getElementById('progress-text')) {
+                document.getElementById('progress-text').textContent = `${progress}%`;
+            }
+            
+            const chartData = { datasets: [{ data: [progress, 100 - progress], backgroundColor: ['#2563eb', '#e5e7eb'], borderWidth: 0, borderRadius: (progress > 0 && progress < 100) ? 50 : 0, }] };
+
+            if (progressChart) {
+                progressChart.data.datasets[0].data = [progress, 100 - progress];
+                progressChart.update('none');
+            } else {
+                progressChart = new Chart(canvas, { type: 'doughnut', data: chartData, options: { responsive: true, cutout: '80%', plugins: { legend: { display: false }, tooltip: { enabled: false } }, animation: { duration: 800, easing: 'easeOutQuart' } } });
+            }
+        }
+
+        // --- EVENT HANDLING & ACTIONS ---
+
+        function setupEventListeners() {
+            document.body.addEventListener('change', e => {
+                if (e.target.matches('.checklist-item')) {
+                    userProgress.completed[e.target.dataset.itemId] = e.target.checked;
+                    render();
+                }
+            });
+            document.body.addEventListener('click', e => {
+                const navLink = e.target.closest('a[data-view-type]');
+                if (navLink) {
+                    e.preventDefault();
+                    if (navLink.classList.contains('module-disabled')) return;
+                    currentView = { type: navLink.dataset.viewType, id: navLink.dataset.viewId ? parseInt(navLink.dataset.viewId, 10) : null };
+                    render();
+                }
+
+                const carouselItem = e.target.closest('.carousel-item');
+                if (carouselItem) {
+                    openVideoModal(carouselItem.querySelector('img').dataset.videoId);
+                }
+
+                const startBtn = e.target.closest('#start-course-btn');
+                if (startBtn) {
+                    const nameInput = document.getElementById('name-input');
+                    if (nameInput.value.trim()) {
+                        userProgress.certificateName = nameInput.value.trim();
+                        currentView = { type: 'module', id: 1 };
+                        render();
+                    } else {
+                        nameInput.focus();
+                        nameInput.classList.add('border-red-500', 'ring-red-500');
+                    }
+                }
+            });
+            
+            const closeModalButton = document.getElementById('close-video-modal');
+            const modalBackdrop = document.getElementById('video-modal-backdrop');
+
+            if (closeModalButton) {
+                closeModalButton.addEventListener('click', closeVideoModal);
+            }
+            if (modalBackdrop) {
+                modalBackdrop.addEventListener('click', e => {
+                    if (e.target === e.currentTarget) {
+                        closeVideoModal();
+                    }
+                });
+            }
+        }
+        
+        function openVideoModal(videoId) {
+            const modalBackdrop = document.getElementById('video-modal-backdrop');
+            const modalContent = document.getElementById('video-modal-content');
+            const player = document.getElementById('video-player');
+            player.src = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
+            modalBackdrop.classList.remove('hidden');
+            setTimeout(() => {
+                modalBackdrop.classList.remove('opacity-0');
+                modalContent.classList.remove('opacity-0', 'scale-95');
+            }, 10);
+        }
+
+        function closeVideoModal() {
+            const modalBackdrop = document.getElementById('video-modal-backdrop');
+            const modalContent = document.getElementById('video-modal-content');
+            const player = document.getElementById('video-player');
+            modalBackdrop.classList.add('opacity-0');
+            modalContent.classList.add('opacity-0', 'scale-95');
+            setTimeout(() => {
+                modalBackdrop.classList.add('hidden');
+                player.src = ''; // Stop the video
+            }, 300);
+        }
+
+        function downloadCertificate() {
+            const certificateNode = document.getElementById('certificate');
+            const downloadButton = document.getElementById('download-cert-btn');
+            downloadButton.textContent = 'Generating...';
+            downloadButton.disabled = true;
+
+            html2canvas(certificateNode, { scale: 3, useCORS: true, backgroundColor: '#ffffff' }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = `Kryos_Certificate_${userProgress.certificateName.replace(/\s+/g, '_') || 'Completion'}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                downloadButton.textContent = 'Download Certificate (PNG)';
+                downloadButton.disabled = false;
+            }).catch(err => {
+                console.error('Error generating certificate:', err);
+                alert('Could not generate certificate. Please try again.');
+                downloadButton.textContent = 'Download Certificate (PNG)';
+                downloadButton.disabled = false;
+            });
+        }
+
+        // --- GEMINI API FEATURE ---
+
+        async function handleChatMessage() {
+            const chatInput = document.getElementById('chat-input');
+            const chatHistoryDiv = document.getElementById('chat-history');
+            const chatSendBtn = document.getElementById('chat-send-btn');
+            
+            const userMessage = chatInput.value.trim();
+            if (!userMessage) return;
+
+            chatInput.value = '';
+            chatSendBtn.disabled = true;
+
+            // Display user message
+            const userMessageDiv = document.createElement('div');
+            userMessageDiv.textContent = userMessage;
+            userMessageDiv.className = "bg-blue-100 text-blue-800 p-3 rounded-lg ml-auto max-w-xs lg:max-w-md";
+            chatHistoryDiv.appendChild(userMessageDiv);
+            chatHistoryDiv.scrollTop = chatHistoryDiv.scrollHeight;
+
+            // Display loading indicator
+            const loadingDiv = document.createElement('div');
+            loadingDiv.innerHTML = `<div class="flex items-center gap-2"><div class="h-2 w-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div><div class="h-2 w-2 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div><div class="h-2 w-2 bg-gray-400 rounded-full animate-bounce"></div></div>`;
+            loadingDiv.className = "bg-gray-200 p-3 rounded-lg self-start max-w-xs lg:max-w-md";
+            chatHistoryDiv.appendChild(loadingDiv);
+            chatHistoryDiv.scrollTop = chatHistoryDiv.scrollHeight;
+
+            const currentModule = courseData.modules.find(m => m.id === currentView.id);
+            const prompt = `You are a helpful graphic design tutor. A student is currently in the module "${currentModule.title}: ${currentModule.description}". Answer their following question concisely and helpfully in that context: "${userMessage}"`;
+            
+            let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+            const payload = { contents: chatHistory };
+            const apiKey = ""; // API key will be provided by the environment
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API request failed with status ${response.status}`);
+                }
+
+                const result = await response.json();
+                
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    
+                    const aiMessage = result.candidates[0].content.parts[0].text;
+                    loadingDiv.textContent = aiMessage; // Replace loading with response
+                } else {
+                    throw new Error("Invalid response structure from API.");
+                }
+            } catch (error) {
+                console.error("Gemini API Error:", error);
+                loadingDiv.textContent = "Sorry, I couldn't get a response. Please try again.";
+                loadingDiv.classList.add('text-red-500');
+            } finally {
+                chatSendBtn.disabled = false;
+                chatHistoryDiv.scrollTop = chatHistoryDiv.scrollHeight;
+            }
+        }
+
+
+        // --- START THE APP ---
+        document.addEventListener('DOMContentLoaded', initializeAppUI);
+    </script>
+</body>
+</html>
